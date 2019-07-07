@@ -1,30 +1,54 @@
 import flask
 import flask_cors
-import urllib.request, json 
+import sqlite3 
+import json
+import datetime
 
-bountyPreload = []
-with urllib.request.urlopen("https://gitcoin.co/api/v0.1/bounties/?format=json") as url:
-    data = json.loads(url.read().decode())
-    for obj in data:
-        i = {
-            "bounty_url": obj["url"],
-            "founded_by": f'{obj["bounty_owner_name"]} (GitHub: {obj["bounty_owner_github_username"]})',
-            "status": obj["status"],
-            "github_url": obj["github_url"],
-            "date_last_reviewed": None,
-            "title": obj["title"],
-            "created_on": obj["created_on"],
-            "standard_bounties_id": obj["standard_bounties_id"]
+from flask import request
 
-        }
-        bountyPreload.append(i)
-        print("Bounty: "+json.dumps(i))
+def loadBountyItems(lastCheckInSinceDays):
+    bountyPreload = []
+    conn = sqlite3.connect("mockserver.sqlite3")
+    conn_c = conn.cursor()
+
+    # god bless https://medium.com/@PyGuyCharles/python-sql-to-json-and-beyond-3e3a36d32853
+    itms = [dict(zip([key[0] for key in conn_c.description], row)) for row in conn_c.execute("select * from bountiesSync").fetchall()]
+    for itm in itms:
+        if itm["date_last_reviewed"] == None or lastCheckInSinceDays == -1 or (datetime.datetime.now() - datetime.datetime.strptime(itm["date_last_reviewed"],"%Y-%m-%d %H:%M:%S.%f")).days > lastCheckInSinceDays:
+            bountyPreload.append(itm)
+    
+    conn_c.close()
+    conn.close()
+    return bountyPreload
+
+def updateBountyOnDB(stdbtyid):
+    conn = sqlite3.connect("mockserver.sqlite3")
+    print("UPDATE bountiesSync SET date_last_reviewed = ? WHERE standard_bounties_id = ?")
+    print((str(datetime.datetime.now()), stdbtyid))
+    conn.execute("UPDATE bountiesSync SET date_last_reviewed = ? WHERE standard_bounties_id = ?", (str(datetime.datetime.now()), int(stdbtyid)))
+    conn.commit()
+    conn.close()
+    return ""
+
+
 
 app = flask.Flask("app")
 cors = flask_cors.CORS(app)
 
-@app.route('/api/v1/checkin/bounties')
+@app.route('/api/v1/checkin/bounties', methods=['GET'])
 def getBounties():
-    return json.dumps(bountyPreload)
+    lastCheckInSinceDays = request.args.get('lastCheckInSinceDays', default = 7, type = int)
+    return json.dumps(loadBountyItems(lastCheckInSinceDays))
+
+@app.route('/api/v1/checkin/bounties', methods=['POST'])
+def updateBountiesCheckInDate():
+    for vals in request.values:
+        print(f'{vals} - {request.values[vals]}')
+    if request.values["standard_bounties_id"] != None:
+        updateBountyOnDB(request.values["standard_bounties_id"])
+    return {"status": "OK"}
+
 
 app.run(port=8000)
+
+print("shutting down...")

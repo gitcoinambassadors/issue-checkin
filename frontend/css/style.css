@@ -138,3 +138,17 @@ input {
 .iconbar {
   float: right;
 }
+.white {
+  color: rgba(255,255,255,1);
+}
+
+.nakedButton{
+  border: 0px;
+  margin: 0px 0px 0px 0px;
+  padding: 0px 0px 0px 0px;
+  background-color: rgba(0,0,0,0);
+}
+.nakedButton:hover{
+  transition: 0.2s;
+  background-color: rgba(0,0,0,.2);
+}

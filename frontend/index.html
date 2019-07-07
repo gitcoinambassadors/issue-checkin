@@ -1,12 +1,156 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Issue Explorer Checkin</title>
-</head>
-<body>
+<html>
 
+<head>
+    <title>Check-In Tool</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <link rel="stylesheet" media="screen" href="https://fontlibrary.org/face/pixel-operator" type="text/css" />
+    <script type='text/javascript' src='js/jquery-3.4.1.min.js'></script>
+    <script type='text/javascript' src='js/knockout-min.js'></script>
+    <script type='text/javascript' src='js/moment-with-locales.min.js'></script>
+    <script src="https://code.iconify.design/1/1.0.2/iconify.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="app-header">
+            <ul>
+                <li><a href="#">GitCoin/Ambassador Check-In Tool for Issues/Bounties</a></li>
+            </ul>
+        </div>
+        <div class="app-content">
+            <div id="genericOverviewContainer">
+                <div class="padding-all-1em app-content-header">
+                    There are currently <span data-bind="text: noOfBounties">(loading...)</span> bounties on the
+                    system:<BR />
+                </div>
+                <div class="rowContainer padding-all-1em" data-bind="foreach: objs">
+                    <div class="rowContainerItem">
+                        <div class="rowContainerItemContent">
+                            <b><span data-bind="text: title"></span></b>
+                            <div>
+                                <div class="content ilb">
+                                    <div><a data-bind="attr: {href: github_url}">GitHub URL</a> - <a
+                                            data-bind="attr: {href: bounty_url}">GitCoin URL</a></div>
+                                    <div>Created on: <span
+                                            data-bind="date: created_on, format: 'DD-MMM-YYYY / LT'"></span></div>
+                                    <div>Founded by: <span data-bind="text: founded_by"></span></div>
+                                    <div>Last check-in: <span data-bind="text: date_last_reviewed"></span></div>
+                                    <div>Overall Status: <span data-bind="text: status"></span></div>
+                                    <div>Opened <span data-bind="text: daysOpen"></span> days ago.</div>
+
+                                </div>
+                                <span class="iconbar">
+                                    <span class="iconify icon green" data-icon="ic-sharp-traffic" data-inline="false"></span><BR />
+                                    <a class="icon" href="javascript:saveGeneric()">&#x2713;</a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <script>
+                    function genericOverviewModel() {
+                        this.objs = ko.observableArray([]);
+                        this.noOfBounties = ko.observable();
+
+                        var self = this;
+                        this.reloadData = function () {
+                            $.getJSON("http://localhost:8000/api/v1/checkin/bounties", function (restData) {
+                                function genericModel() {
+
+                                }
+                                var itms = [];
+                                var fields = [];
+                                $.map(restData, function (i) {
+                                    var p = Object.keys(i);
+                                    p.forEach((v) => {
+                                        if (v in fields) {
+                                        } else {
+                                            fields.push(v);
+                                        }
+                                    })
+                                });
+                                self.noOfBounties(restData.length);
+                                /* all fields collected -> map */
+                                var maps = $.map(restData, function (i) {
+                                    var q = new genericModel();
+                                    q.fields = ko.observableArray([]);
+                                    var allFields = [];
+                                    allFields = [];
+                                    fields.forEach((v) => {
+                                        if (i[v] !== undefined && q[v] === undefined) {
+                                            q[v] = ko.observable(i[v]);
+                                            allFields.push({
+                                                "val": ko.observable(q[v]()),
+                                                "desc": ko.observable(v),
+                                                "ro": false
+                                            });
+
+                                        } else if (q[v] === undefined) {
+                                            q[v] = ko.observable("");
+                                        }
+
+
+                                    });
+                                    if (q["displayText"] === undefined) {
+                                        q.displayText = ko.observable("not defined");
+                                    }
+
+                                    q.daysOpen = ko.observable();
+                                    q.daysOpen(moment(Date.now()).diff(q["created_on"](), 'days'));
+                                    q.fields(allFields);
+                                    return q;
+                                })
+                                self.objs(maps);
+                            });
+                        }
+
+                        this.reloadData();
+                    }
+
+                    window.currentBinding = new genericOverviewModel();
+
+                    ko.bindingHandlers.date = {
+                        // https://disqus.com/home/discussion/jasonmitchellcom/binding_and_formatting_dates_using_knockout_and_moment_js/#comment-1374417079
+                        init: function (element, valueAccessor, allBindingsAccessor, viewModel) {
+                            ko.utils.registerEventHandler(element, 'change', function () {
+                                var value = valueAccessor();
+                                if (element.value !== null && element.value !== undefined && element.value.length > 0) {
+                                    value(element.value);
+                                }
+                                else {
+                                    value('');
+                                }
+                            });
+                        },
+                        update: function (element, valueAccessor, allBindingsAccessor, viewModel) {
+                            var value = valueAccessor();
+                            var allBindings = allBindingsAccessor();
+                            var valueUnwrapped = ko.utils.unwrapObservable(value);
+
+                            // Date formats: http://momentjs.com/docs/#/displaying/format/
+                            var pattern = allBindings.format || 'DD/MM/YYYY';
+
+                            var output = "-";
+                            if (valueUnwrapped !== null && valueUnwrapped !== undefined && valueUnwrapped.length > 0) {
+                                output = moment(valueUnwrapped).format(pattern);
+                            }
+
+                            if ($(element).is("input") === true) {
+                                $(element).val(output);
+                            } else {
+                                $(element).text(output);
+                            }
+                        }
+                    };
+
+                    ko.applyBindings(window.currentBinding, document.getElementById("genericOverviewContainer"));
+
+                </script>
+            </div>
+        </div>
+    </div>
 </body>
+
 </html>

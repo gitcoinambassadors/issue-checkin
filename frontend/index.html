@@ -21,7 +21,9 @@
             <div id="genericOverviewContainer">
                 <div class="padding-all-1em app-content-header">
                     Showing <span data-bind="text: noOfBounties">(loading...)</span> bounties...
-                    <span class="iconbar">Show: <a href="javascript:showAllBountes()">all</a> | <a href="javascript:noCheckInSince(7)">7 days no checkin</a> (default)</span>
+                    <span class="iconbar">
+						Bounties: <a href="javascript:showAllBountes()">all</a> | <a href="javascript:noCheckInSince(7)">7 days no checkin</a> (default) - Status: <a href="javascript:showBountiesStatus('all')">all</a> | <a href="javascript:showBountiesStatus('open')">open</a> | <a href="javascript:showBountiesStatus('started')">started</a> | <a href="javascript:showBountiesStatus('submitted')">submitted</a> - Trafficlight: <a href="javascript:showBountiesTrafficlight('all')"> all | <a href="javascript:showBountiesTrafficlight('green')"> <span class="dot bg-green"></span> | <a href="javascript:showBountiesTrafficlight('yellow')"> <span class="dot bg-yellow"></span> | <a href="javascript:showBountiesTrafficlight('red')"> <span class="dot bg-red"></span> 
+					</span>
                 </div>
                 <div class="rowContainer padding-all-1em" data-bind="foreach: objs">
                     <div class="rowContainerItem">
@@ -36,6 +38,13 @@
                                     <div><u>Founded by:</u> <span data-bind="text: founded_by"></span></div>
                                     <div><u>Last check-in:</u> <span data-bind="text: date_last_reviewed"></span></div>
                                     <div><u>Overall Status:</u> <span data-bind="text: status"></span></div>
+									<div><u>Applicants:</u> <span data-bind="text: noofapplicants"></span></div>
+									<div><u>Submitted PRs:</u> <span data-bind="text: noofpr"></span></div>
+									<div><u>Has applicants:</u> <span data-bind="text: hasapplicant"></span></div>
+									<div><u>Was warned?:</u> <span data-bind="text: haswarned"></span></div>
+									<div><u>Was escalated?:</u> <span data-bind="text: hasescalation"></span></div>
+									<div><u>Event:</u> <span data-bind="text: event"></span></div>
+									
                                     <div>Opened <b><span data-bind="text: daysOpen"></span></b> days ago.</div>
 
                                 </div>
@@ -56,17 +65,25 @@
                         this.objs = ko.observableArray([]);
                         this.noOfBounties = ko.observable();
                         this.bountyDays = ko.observable(7);
+						this.bountyStatusFilter = ko.observable("all");
+						this.bountyTrafficlightFilter = ko.observable("all");
                         this.bountyDays.subscribe((nv) =>{
                             self.reloadData()
-                        })
+                        });
+                        this.bountyStatusFilter.subscribe((nv) =>{
+                            self.reloadData()
+                        });
+                        this.bountyTrafficlightFilter.subscribe((nv) =>{
+                            self.reloadData()
+                        });
 
                         this.reloadData = function () {
-                            $.getJSON("http://localhost:8000/api/v1/checkin/bounties?lastCheckInSinceDays="+self.bountyDays(), function (restData) {
+                            $.getJSON("http://localhost:8001/api/v1/checkin/bounties?lastCheckInSinceDays="+self.bountyDays() + "&status=" + self.bountyStatusFilter() + "&trafficlight=" + self.bountyTrafficlightFilter(), function (restData) {
                                 function genericModel() {
 
                                     this.reportCheckIn = function(){
                                         $.ajax({
-                                            url: "http://localhost:8000/api/v1/checkin/bounties",
+                                            url: "http://localhost:8001/api/v1/checkin/bounties",
                                             type: "POST",
                                             data: {"standard_bounties_id": this["standard_bounties_id"]},
                                             dataType:'json',
@@ -171,6 +188,13 @@
                     function noCheckInSince(d){
                         window.currentBinding.bountyDays(d);
                     }
+					function showBountiesTrafficlight(e){
+						window.currentBinding.bountyTrafficlightFilter(e);
+					}
+					function showBountiesStatus(e){
+						window.currentBinding.bountyStatusFilter(e);
+					}
+					
                     ko.applyBindings(window.currentBinding, document.getElementById("genericOverviewContainer"));
 
                 </script>

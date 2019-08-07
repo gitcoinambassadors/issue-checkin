@@ -6,7 +6,7 @@ import datetime
 
 from flask import request
 
-def loadBountyItems(lastCheckInSinceDays):
+def loadBountyItems(lastCheckInSinceDays, statusFilter, trafficlightFilter):
     bountyPreload = []
     conn = sqlite3.connect("mockserver.sqlite3")
     conn_c = conn.cursor()
@@ -15,7 +15,9 @@ def loadBountyItems(lastCheckInSinceDays):
     itms = [dict(zip([key[0] for key in conn_c.description], row)) for row in conn_c.execute("select * from bountiesSync").fetchall()]
     for itm in itms:
         if itm["date_last_reviewed"] == None or lastCheckInSinceDays == -1 or (datetime.datetime.now() - datetime.datetime.strptime(itm["date_last_reviewed"],"%Y-%m-%d %H:%M:%S.%f")).days > lastCheckInSinceDays:
-            bountyPreload.append(itm)
+            if statusFilter == "all" or statusFilter == itm["status"]:
+                if trafficlightFilter == "all" or trafficlightFilter == itm["trafficlight"]:
+                    bountyPreload.append(itm)
     
     conn_c.close()
     conn.close()
@@ -38,7 +40,9 @@ cors = flask_cors.CORS(app)
 @app.route('/api/v1/checkin/bounties', methods=['GET'])
 def getBounties():
     lastCheckInSinceDays = request.args.get('lastCheckInSinceDays', default = 7, type = int)
-    return json.dumps(loadBountyItems(lastCheckInSinceDays))
+    statusSelect = request.args.get('status', default = 'all', type = str)
+    trafficlightSelect = request.args.get('trafficlight', default = 'all', type = str)
+    return json.dumps(loadBountyItems(lastCheckInSinceDays, statusSelect, trafficlightSelect))
 
 @app.route('/api/v1/checkin/bounties', methods=['POST'])
 def updateBountiesCheckInDate():
@@ -49,6 +53,6 @@ def updateBountiesCheckInDate():
     return {"status": "OK"}
 
 
-app.run(port=8000)
+app.run(port=8001)
 
 print("shutting down...")
